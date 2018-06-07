@@ -19,23 +19,36 @@ import numpy as np
 import os
 
 
-# COREGISTRATION
+os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
+
+# UNZIP HEADS
+
+# CREATE TEXT FILES WITH MRIS TO PREPROCESS
+
+from MRI_preprocessing_lib import generate_MRIs_textfile
+
+wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
+
+generate_MRIs_textfile(wd)
+
+
+#%% COREGISTRATION
 
 "MATLAB SCRIPT"
 
-# RESCALING
+#%% RESCALING
 
 print('Starting image rescaling.')
 
-os.chdir('/home/lukas/Documents/projects/brainSegmentation/')
+os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
 
 
-wd = '/home/lukas/Documents/projects/strokeHeads/preprocessing_pipeline/'
+wd = '/home/hirsch/Documents/projects/strokeHeads/preprocessing_pipeline/'
 
 
 from MRI_preprocessing_lib import rescale
 
-TEXT_FILE_MRIs = '/home/lukas/Documents/projects/strokeHeads/preprocessing_pipeline/data_after_coreg.txt'
+TEXT_FILE_MRIs = '/home/hirsch/Documents/projects/strokeHeads/preprocessing_pipeline/data_after_coreg.txt'
 
 RESCALED_ADDRESS = wd + 'rescaled_coreg_T1/'
 
@@ -62,7 +75,7 @@ fi.close()
 print('End of image rescaling.')
 
 
-# ZERO PADDING
+#%% ZERO PADDING
 
 print('Starting image padding.')
 
@@ -92,7 +105,7 @@ fi.close()
 print('End of image padding.')
 
 
-# STANDARDIZATION
+#%% STANDARDIZATION
 
 print('Starting standardization.')
 
@@ -109,7 +122,104 @@ MEAN = 27.39592727283753
 STD = 55.587982695829403
     
 standardize_MRIs(TEXT_FILE_MRIs, STAND_ADDRESS, mean=MEAN, std=STD)
-
-
-
 print('End standardization.')
+
+
+#%%###########################################################################################################
+
+#---------------------------------   PREPROCESSING OF LABELS 
+
+#%% GENERATE TEXT FILES FOR CHANNELS
+import os
+os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
+from MRI_preprocessing_lib import create_masks_text_per_subject
+wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
+create_masks_text_per_subject(wd)
+
+
+
+#%% CHECK OVERLAPS
+os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
+
+from MRI_preprocessing_lib import add_MRI_maps_checkOverlap, get_heads
+wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
+os.chdir(wd)    
+
+heads = get_heads(wd)
+
+print 'Counting how many voxels of each segmentation mask overlap in each head ...'
+for head in heads:
+    
+    maps = os.getcwd() + '/' + head + '/' + 'masks.txt'
+    address = '/'.join(maps.split('/')[:-1])
+    os.chdir(address)
+    overlap, count = add_MRI_maps_checkOverlap(maps)
+    name = ''.join(maps.split('/')[-2])
+    
+    
+    string = name + ' ' + str(overlap) + ' : ' + str(count) + ' Voxels.'  
+    
+    f = open(wd + '/overlaps_resampled_heads.txt', 'a')
+    f.write('\n' + string)
+    f.close()
+    os.chdir(wd)
+
+
+# RESOLVE OVERLAPS  --- MATLAB
+
+
+
+#%% CHECK OVERLAPS
+os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
+
+from MRI_preprocessing_lib import add_MRI_maps_checkOverlap, get_heads
+wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
+os.chdir(wd)    
+
+heads = get_heads(wd)
+
+print 'Counting how many voxels of each segmentation mask overlap in each head ...'
+for head in heads:
+    
+    maps = os.getcwd() + '/' + head + '/' + 'masks.txt'
+    address = '/'.join(maps.split('/')[:-1])
+    os.chdir(address)
+    overlap, count = add_MRI_maps_checkOverlap(maps, overlap_free=True)
+    name = ''.join(maps.split('/')[-2])
+    
+    
+    string = name + ' ' + str(overlap) + ' : ' + str(count) + ' Voxels.'  
+    
+    f = open(wd + '/overlaps_resampled_heads.txt', 'a')
+    f.write('\n' + string)
+    f.close()
+    os.chdir(wd)
+
+
+#%% GENERATE TARGET LABELS BY ADDING LABELS 
+import os
+import nibabel as nib
+os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
+
+from MRI_preprocessing_lib import  addMRIs_create_Target, get_heads
+
+wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
+
+os.chdir(wd)    
+print 'Creating Nifti image of overlaps in masks in each head ...'
+
+heads = get_heads(wd)
+
+for head in heads:
+    maps = wd + '/{}/masks.txt'.format(head)
+    address = '/'.join(maps.split('/')[:-1])
+    os.chdir(address)
+    img = addMRIs_create_Target(maps)
+    out = os.getcwd() + '/LABEL.nii'
+    nib.save(img, out)
+    os.chdir(wd)    
+
+
+#-------------- END------------
+# COREG (TOGETHER WITH MRI)
+# PADDING (TOGETHER WITH MRI)

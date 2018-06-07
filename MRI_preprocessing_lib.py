@@ -14,73 +14,37 @@ import nibabel as nib
 import numpy as np
 import os
 
-# list copied from ls output:
 
-heads = '''GU003_MRI_5_Electrodes.sip*
-GU010_Big_Electrodes.sip*
-GU011_T1_T2_AZ_CT3.sip*
-GU012_Big_Electrodes.sip*
-GU013_testing.sip*
-GU015_AZ_CT_Electrodes.sip*
-GU016_CT2_Electrodes.sip*
-GU017_holesgray6_CT1_Electrodes.sip*
-GU018_T2.sip*
-GU019_Big_CT3_Electrodes.sip*
-GU020_T1_CT2.sip*
-GU021_Final_CT1_electrodes.sip*
-GU024_CT2_electrodes.sip*
-GU027__AA6_electrodes.sip*
-NC004_Electrodes.sip*
-NC010_Electrodes.sip*
-NC011_PostPatching_CT3.sip*
-NC012_full_CT4.sip*
-NC013_CT1i.sip*
-NC014_CT4.sip*
-NC015_T1_T2_PatchedCT2.sip*
-NC016_CT2_Electrodes.sip*
-NC018_AZ_8_25_17_CT1_test_delete.sip*
-NC019_AA10_electrodes.sip*
-NC01_CT2.sip*
-NC020_done_CT_electrodes.sip*
-NC021_CT1_electrodes.sip*
-NC022_CT2_electrodes.sip*
-NC023__AA10_electrodes.sip*]'''
-
-heads = heads.split('\n')
-
-for head in heads:
-    heads[heads.index(head)] = head.split('_')[0]
+def create_masks_text_per_subject(wd):
     
-'''
-os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-'''
-  
-def create_text_file_per_channel(maps):
-    maps = open(maps)
-    maps = maps.readlines()
+    heads = get_heads(wd)    
 
-    
+    for i in range(len(heads)):
+        print('Creating masks.txt for subject {}'.format(heads[i]))
+        os.chdir(wd + heads[i])        
 
-    
-    myMaps = []
-    for i in range(len(maps)):
-        myMaps.append( maps[i][:-1].split('.')[0] + '_of.nii')
+        files = os.listdir(os.getcwd())        
         
-    gm = [x for x in myMaps if (any(substring in x.lower() for substring in ['gray','_gm'])) ]
-    
-    wm = [x for x in myMaps if (any(substring in x.lower() for substring in ['white', '_wm'])) ]
-    cs = [x for x in myMaps if (any(substring in x.lower() for substring in ['csf'])) ]
-    ai = [x for x in myMaps if (any(substring in x.lower() for substring in ['air'])) ]
-    sk = [x for x in myMaps if (any(substring in x.lower() for substring in ['skin'])) ]
-    bo = [x for x in myMaps if (any(substring in x.lower() for substring in ['bone', 'skull'])) ]
+        gm = [x for x in files if (any(substring in x.lower() for substring in ['gray','_gm'])) ]    
+        wm = [x for x in files if (any(substring in x.lower() for substring in ['white', '_wm'])) ]
+        cs = [x for x in files if (any(substring in x.lower() for substring in ['csf'])) ]
+        ai = [x for x in files if (any(substring in x.lower() for substring in ['air'])) ]
+        sk = [x for x in files if (any(substring in x.lower() for substring in ['skin'])) ]
+        bo = [x for x in files if (any(substring in x.lower() for substring in ['bone', 'skull'])) ]
+
+        masks = [ai, gm, wm, cs, bo, sk]
+        masks.sort() # For input into MATLAB solve overlaps
+
+        f = open(os.getcwd() + '/masks.txt', 'w')
+        for item in masks:
+            mask = os.getcwd() + '/' + item[0]
+            f.write("%s\n" % mask)
+        f.close()
 
     
-
-    return gm, wm, cs, ai, sk, bo
-
 
 '''
-os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
+os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
 print 'Creating text file containing all channels ...'
 gray = []
 white = []
@@ -90,7 +54,7 @@ skin = []
 bone = []
 
 for head in heads:
-    os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
+    os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
     maps = os.getcwd() + '/' + head + '/' + 'masks.txt'
     address = '/'.join(maps.split('/')[:-1])
     os.chdir(address)
@@ -108,45 +72,46 @@ for head in heads:
     
     for channel in channels.keys():
         print channel
-        f = open('/home/lukas/Documents/projects/strokeHeads/labels_{}.txt'.format(channel), 'a')
+        f = open('/home/hirsch/Documents/projects/strokeHeads/labels_{}.txt'.format(channel), 'a')
         for item in channels[channel]:
             f.write("%s\n" % item)
         f.close()
-        os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
+        os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
         
-        
-############# Get MRIs ###################################################################
-        
-MRIs = []
-for head in heads:
-    os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-    maps = os.getcwd() + '/' + head + '/' + 'masks.txt'
-    address = '/'.join(maps.split('/')[:-1])
-    os.chdir(address)
+'''
+
+#wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
+
+def get_heads(wd):
+    os.chdir(wd)
+    extracted_heads = [d for d in os.listdir(wd) if len(d.split('.')) == 1]
+    extracted_heads.sort()
+    return extracted_heads
+
+def generate_MRIs_textfile(wd):
+    os.chdir(wd)
+    extracted_heads = get_heads(wd)
+    mris = []
+    for head in extracted_heads:
+        os.chdir(wd+head)
+        files = os.listdir(os.getcwd())
+        mri = [d for d in files if (any(substring in d.lower() for substring in ['background'])) & (not (any(substring in d.lower() for substring  in ['blank', 'log'])))]
+        mri = mri[0]
+        mris.append(os.getcwd() +'/'+ mri)
     
-    MRI =  [x for x in os.listdir(address) if (any(substring in x.lower() for substring in ['background1'])) & (not (any(substring in x.lower() for substring  in ['log'])))]
-    for i in range(len(MRI)):
-        MRI[i] = os.getcwd() + '/' + MRI[i]
-    MRIs.extend(MRI)
+    f = open(wd + '/MRIs.txt', 'a')
+    for item in mris:
+        f.write("%s\n" % item)
+    f.close()
+    print('Text file created with MRI addresses on {}'.format(wd))
     
-len(MRIs)
-MRIs
-
-
-
-f = open('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/T1.txt', 'a')
-for item in MRIs:
-    f.write("%s\n" % item)
-f.close()
-os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-
-
+'''
 #%%##########################   Add prefix r (done after resampling in MATLAB)
 
 channels = ['labels_Air','labels_Bone','labels_CSF','labels_GM','labels_Skin','labels_WM']
 
 for j in range(len(channels)):
-    resampled = '/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/{}.txt'.format(channels[j])
+    resampled = '/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/{}.txt'.format(channels[j])
     img = open(resampled)
     img = img.readlines()
     
@@ -154,7 +119,7 @@ for j in range(len(channels)):
         img[i] = '/'.join(img[i].split('/')[0:-1]) + '/r' + img[i].split('/')[-1]
     
     img
-    f = open('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_{}.txt'.format(channels[j]), 'a')
+    f = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_{}.txt'.format(channels[j]), 'a')
     for item in img:
         f.write("%s" % item)
     f.close()
@@ -162,7 +127,7 @@ for j in range(len(channels)):
 #%%##                       Create new text file per subject folder, containing address for resampled masks
     
 for head in heads:
-    os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
+    os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
     maps = os.getcwd() + '/' + head + '/' + 'masks.txt'
     address = '/'.join(maps.split('/')[:-1])
     os.chdir(address)
@@ -180,7 +145,7 @@ for head in heads:
 import shutil
 
 for head in heads:
-    os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads')
+    os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
     maps = os.getcwd() + '/' + head + '/' + 'rMasks.txt'
     address = '/'.join(maps.split('/')[:-1])
     os.chdir(address)
@@ -201,11 +166,11 @@ for head in heads:
 
 #%%#     Create text file with resampled overlap free channels
 
-os.chdir('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/')
+os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/')
 files = ['labels_GM','labels_WM','labels_CSF','labels_Bone','labels_Skin','labels_Air']
 channels = [0]*6
 for j in range(len(files)):
-    channels[j] = '/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_{}.txt'.format(files[j])       
+    channels[j] = '/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_{}.txt'.format(files[j])       
 
 for j in range(6):
     maps = open(channels[j]).readlines()
@@ -225,7 +190,7 @@ for j in range(6):
 files = ['labels_Air','labels_GM','labels_WM','labels_CSF','labels_Bone','labels_Skin']  # Air needs to be class 0, because often air sorrounding head is NOT labeled, but retains value 0 because I initialize it that way
 channels = [0]*6
 for j in range(len(files)):
-    channels[j] = '/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_of_{}.txt'.format(files[j])
+    channels[j] = '/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_of_{}.txt'.format(files[j])
 
 for subj in range(29):
     img = 0
@@ -245,20 +210,20 @@ for subj in range(29):
         
     # 0 = air , 1 = GM, 2 = WM, 3 = CSF, 4 = Bone, 5 = Skin, 6 = air
     
-fi = open('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/all_labels.txt')
+fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/all_labels.txt')
 lines = fi.readlines()
 fi.close()
 for i in range(len(lines)):
     lines[i] = '/'.join(lines[i].split('/')[0:-1]) + '/LABELS.nii'
     
-fi = open('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/all_labels.txt', 'a')
+fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/all_labels.txt', 'a')
 for item in lines:
     fi.write("%s\n" % item)
 fi.close()
 '''
 
 #%%#########################  Normalize Intensities 
-''' 
+'''
 def normalizeMRI(nii):
     img = nib.load(nii)
     data = img.get_data()
@@ -271,7 +236,7 @@ def normalizeMRI(nii):
     out = nib.Nifti1Image(data1, aff)
     return(out)
 
-fi = open('/home/lukas/Documents/projects/minimallyConciousMRIstDCS/MRI_LucasParra/niftis/T1.txt')
+fi = open('/home/hirsch/Documents/projects/minimallyConciousMRIstDCS/MRI_LucasParra/niftis/T1.txt')
 lines = fi.readlines()
 fi.close()
 
@@ -285,13 +250,13 @@ for nii in lines:
 
 # create file
     
-fi = open('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_T1.txt')
+fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_T1.txt')
 lines = fi.readlines()
 fi.close()
 for i in range(len(lines)):
     lines[i] = '/'.join(lines[i].split('/')[0:-1]) + '/n' + lines[i].split('/')[-1]
     
-fi = open('/home/lukas/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/nr_T1', 'a')
+fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/nr_T1', 'a')
 for item in lines:
     fi.write("%s" % item)
 fi.close()
@@ -308,7 +273,7 @@ def normalize_training_set_MRI(nii):
     out = nib.Nifti1Image(data1, aff)
     return(out)
 
-nii = '/media/lukas/d37fc604-163d-4e04-83de-88993c28e419/home/lukas/Documents/StrokeHeads/DATA_coreg/GU003_GU003_Background1_Background 3_COPY.nii'
+nii = '/media/hirsch/d37fc604-163d-4e04-83de-88993c28e419/home/hirsch/Documents/StrokeHeads/DATA_coreg/GU003_GU003_Background1_Background 3_COPY.nii'
 '''
 def update_sum_N(nii, m, N):
     img = nib.load(nii)
@@ -339,7 +304,7 @@ def get_overall_mean_std_training_set(MRIs):
     s = np.sqrt(diffs/N)
     return mean, s
 '''
-MRIs_training = '/media/lukas/d37fc604-163d-4e04-83de-88993c28e419/home/lukas/Documents/StrokeHeads/DATA_coreg/data_after_coreg.txt'
+MRIs_training = '/media/hirsch/d37fc604-163d-4e04-83de-88993c28e419/home/hirsch/Documents/StrokeHeads/DATA_coreg/data_after_coreg.txt'
 MEAN, STD = get_overall_mean_std_training_set(MRIs_training)
 '''
 def normalizeMRI(nii, mean, std):
@@ -369,7 +334,7 @@ def standardize_MRIs(MRIs, OUT_FILE, mean=None, std=None):
     fi.close()
 
 '''
-test_set = open('/home/lukas/Documents/projects/minimallyConciousMRIstDCS/MRI_LucasParra/niftis/SEGMENTATION_CNN/coreg_T1.txt')
+test_set = open('/home/hirsch/Documents/projects/minimallyConciousMRIstDCS/MRI_LucasParra/niftis/SEGMENTATION_CNN/coreg_T1.txt')
 lines = test_set.readlines()
 test_set.close()
 
@@ -417,3 +382,77 @@ def padd_image(d, size = 52, tpm_flag = False):
 def rescale(img, min_new = 0, max_new = 255):
     " Rescale image. Default is int8 [0-255] "
     return ((img - img.min()) * (float(max_new - min_new) / float(img.max() - img.min()))) + min_new
+    
+    
+    
+def add_MRI_maps_checkOverlap(maps, overlap_free = False):
+    maps = open(maps)
+    maps = maps.readlines()
+    niftiArray = []
+    for i in range(len(maps)):
+        if overlap_free:
+            myMap = maps[i][:-1].split('.')[0] + '_of.nii' 
+        else:
+            myMap = maps[i][:-1]
+   # For overlap free masks
+        #myMap = '/'.join(myMap.split('/')[0:-1]) +'/r' +  myMap.split('/')[-1]   # for resampled masks
+        niftiArray.append(nib.load(myMap))
+    img = 0
+    count = 0
+    overlap = False
+    #overlapping_tissues = []
+    for i in range(len(niftiArray)):
+        new_mask = niftiArray[i].get_data()
+        
+        #new_mask[new_mask < np.max(new_mask)] = 0
+        new_mask[new_mask != 0] = 1
+        
+        new_mask = np.array(np.array(new_mask ,dtype='?'),dtype='int16')
+        #new_mask =  np.array(np.array(niftiArray[i].get_data()),'int16')
+        
+        img = img + new_mask
+
+    count = np.sum(img > 1)
+    if len(np.unique(img)) > 2:#len(niftiArray):
+         overlap = True
+         
+    return overlap, count#, overlapping_tissues
+
+
+
+def addMRIs_create_Target(maps):
+    maps = open(maps)
+    myMaps = maps.readlines()
+    myMaps = [x.split('.')[0:-1][0] + '_of.nii' for x in myMaps]
+        
+    
+    
+    gm = [x for x in myMaps if (any(substring in x.lower() for substring in ['gray','_gm'])) ]
+    wm = [x for x in myMaps if (any(substring in x.lower() for substring in ['white', '_wm'])) ]
+    cs = [x for x in myMaps if (any(substring in x.lower() for substring in ['csf'])) ]
+    ai = [x for x in myMaps if (any(substring in x.lower() for substring in ['air'])) ]
+    sk = [x for x in myMaps if (any(substring in x.lower() for substring in ['skin'])) ]
+    bo = [x for x in myMaps if (any(substring in x.lower() for substring in ['bone', 'skull'])) ]
+    
+    niftiArray = []
+    niftiArray.append(nib.load(ai[0]))
+    niftiArray.append(nib.load(gm[0]))
+    niftiArray.append(nib.load(wm[0]))
+    niftiArray.append(nib.load(cs[0]))
+    niftiArray.append(nib.load(bo[0]))
+    niftiArray.append(nib.load(sk[0]))
+    
+    img = 0
+    
+    for i in range(len(niftiArray)):        
+        tissue_index = i
+        
+        #new_mask = niftiArray[i].get_data()
+        #new_mask[new_mask < np.max(new_mask)] = 0
+        #new_mask = np.array(np.array(new_mask ,dtype='?'),dtype='int16')*tissue_index
+        new_mask =  np.array(np.array(niftiArray[i].get_data()),'int16')        
+        img = img + new_mask*tissue_index   
+
+    final = nib.Nifti1Image(img, niftiArray[0].affine)
+    return final
+
