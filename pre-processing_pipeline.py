@@ -19,7 +19,6 @@ import numpy as np
 import os
 
 
-os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
 
 # UNZIP HEADS
 
@@ -27,7 +26,7 @@ os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
 
 from MRI_preprocessing_lib import generate_MRIs_textfile
 
-wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
+wd = '/path/wd/'
 
 generate_MRIs_textfile(wd)
 
@@ -40,15 +39,11 @@ generate_MRIs_textfile(wd)
 
 print('Starting image rescaling.')
 
-os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
-
-
-wd = '/home/hirsch/Documents/projects/strokeHeads/preprocessing_pipeline/'
 
 
 from MRI_preprocessing_lib import rescale
 
-TEXT_FILE_MRIs = '/home/hirsch/Documents/projects/strokeHeads/preprocessing_pipeline/data_after_coreg.txt'
+TEXT_FILE_MRIs = '/data_after_coreg.txt'
 
 RESCALED_ADDRESS = wd + 'rescaled_coreg_T1/'
 
@@ -117,9 +112,7 @@ STAND_ADDRESS = wd + 'stand_pad_rescaled_coreg_T1/'
 
 if not os.path.exists(STAND_ADDRESS):
     os.mkdir(STAND_ADDRESS)
-    
-MEAN = 27.39592727283753
-STD = 55.587982695829403
+
     
 standardize_MRIs(TEXT_FILE_MRIs, STAND_ADDRESS, mean=MEAN, std=STD)
 print('End standardization.')
@@ -131,19 +124,14 @@ print('End standardization.')
 
 #%% GENERATE TEXT FILES FOR CHANNELS
 import os
-os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
 from MRI_preprocessing_lib import create_masks_text_per_subject
-wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
 create_masks_text_per_subject(wd)
 
 
 
 #%% CHECK OVERLAPS
-os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
 
 from MRI_preprocessing_lib import add_MRI_maps_checkOverlap, get_heads
-wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
-os.chdir(wd)    
 
 heads = get_heads(wd)
 
@@ -170,10 +158,8 @@ for head in heads:
 
 
 #%% CHECK OVERLAPS
-os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
 
 from MRI_preprocessing_lib import add_MRI_maps_checkOverlap, get_heads
-wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
 os.chdir(wd)    
 
 heads = get_heads(wd)
@@ -199,13 +185,10 @@ for head in heads:
 #%% GENERATE TARGET LABELS BY ADDING LABELS 
 import os
 import nibabel as nib
-os.chdir('/home/hirsch/Documents/projects/brainSegmentation/')
 
 from MRI_preprocessing_lib import  addMRIs_create_Target, get_heads
 
-wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
 
-os.chdir(wd)    
 print 'Creating Nifti image of overlaps in masks in each head ...'
 
 heads = get_heads(wd)
