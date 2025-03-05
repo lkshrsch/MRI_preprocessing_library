@@ -43,45 +43,6 @@ def create_masks_text_per_subject(wd):
 
     
 
-'''
-os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-print 'Creating text file containing all channels ...'
-gray = []
-white = []
-csf = []
-air = []
-skin = []
-bone = []
-
-for head in heads:
-    os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-    maps = os.getcwd() + '/' + head + '/' + 'masks.txt'
-    address = '/'.join(maps.split('/')[:-1])
-    os.chdir(address)
-    
-    gm, wm, cs, ai, sk, bo = create_text_file_per_channel(maps)
-    
-    gray.extend(gm)
-    white.extend(wm)
-    csf.extend(cs)
-    air.extend(ai)
-    skin.extend(sk)
-    bone.extend(bo)
-    
-    channels = {'GM':gray, 'WM':white, 'CSF':csf, 'Air':air, 'Skin':skin, 'Bone':bone}
-    
-    for channel in channels.keys():
-        print channel
-        f = open('/home/hirsch/Documents/projects/strokeHeads/labels_{}.txt'.format(channel), 'a')
-        for item in channels[channel]:
-            f.write("%s\n" % item)
-        f.close()
-        os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-        
-'''
-
-#wd = '/home/hirsch/Documents/projects/strokeHeads/raw/Batch2/'
-
 def get_heads(wd):
     os.chdir(wd)
     extracted_heads = [d for d in os.listdir(wd) if len(d.split('.')) == 1]
@@ -105,176 +66,6 @@ def generate_MRIs_textfile(wd):
     f.close()
     print('Text file created with MRI addresses on {}'.format(wd))
     
-'''
-#%%##########################   Add prefix r (done after resampling in MATLAB)
-
-channels = ['labels_Air','labels_Bone','labels_CSF','labels_GM','labels_Skin','labels_WM']
-
-for j in range(len(channels)):
-    resampled = '/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/{}.txt'.format(channels[j])
-    img = open(resampled)
-    img = img.readlines()
-    
-    for i in range(len(img)):
-        img[i] = '/'.join(img[i].split('/')[0:-1]) + '/r' + img[i].split('/')[-1]
-    
-    img
-    f = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_{}.txt'.format(channels[j]), 'a')
-    for item in img:
-        f.write("%s" % item)
-    f.close()
-    
-#%%##                       Create new text file per subject folder, containing address for resampled masks
-    
-for head in heads:
-    os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-    maps = os.getcwd() + '/' + head + '/' + 'masks.txt'
-    address = '/'.join(maps.split('/')[:-1])
-    os.chdir(address)
-    m = open(maps)
-    masks = m.readlines()
-    
-    f = open('rMasks.txt', 'a')
-    for mask in masks:
-        rMask = '/'.join(mask.split('/')[0:-1]) + '/r' + mask.split('/')[-1].split('.')[0] + '_of.nii'
-        f.write("%s\n" % rMask)
-    f.close()
-    
-#%%                     Go to all resampled masks, and convert all nonzero values to 1
-
-import shutil
-
-for head in heads:
-    os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads')
-    maps = os.getcwd() + '/' + head + '/' + 'rMasks.txt'
-    address = '/'.join(maps.split('/')[:-1])
-    os.chdir(address)
-    m = open(maps)
-    masks = m.readlines() 
-    
-    for mask in masks:
-        mask = mask[0:-1]
-        copy = mask.split('.')[0] + '_(bkp).nii' 
-        shutil.copy2(mask, copy)
-        nifti = nib.load(mask)
-        img = nifti.get_data()
-        img[img != 0] = 1
-        out = nib.Nifti1Image(img, nifti.affine)
-        os.remove(mask)
-        nib.save(out, mask)
-
-
-#%%#     Create text file with resampled overlap free channels
-
-os.chdir('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/')
-files = ['labels_GM','labels_WM','labels_CSF','labels_Bone','labels_Skin','labels_Air']
-channels = [0]*6
-for j in range(len(files)):
-    channels[j] = '/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_{}.txt'.format(files[j])       
-
-for j in range(6):
-    maps = open(channels[j]).readlines()
-    for i in range(len(maps)):
-        maps[i] = maps[i].split('.')[0] + '_rof.nii'
-        
-    f = open('resampled_of_{}.txt'.format(files[j]), 'a')
-    for mask in maps:
-        f.write("%s\n" % mask)
-    f.close()
-        
-
-
-#%%###   Add all label channels into single files
-
-
-files = ['labels_Air','labels_GM','labels_WM','labels_CSF','labels_Bone','labels_Skin']  # Air needs to be class 0, because often air sorrounding head is NOT labeled, but retains value 0 because I initialize it that way
-channels = [0]*6
-for j in range(len(files)):
-    channels[j] = '/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_of_{}.txt'.format(files[j])
-
-for subj in range(29):
-    img = 0
-    for ch in range(6):
-        current_ch = open(channels[ch]).readlines()[subj][0:-1]
-        nii = nib.load(current_ch)
-        img = img + (nii.get_data()*ch)
-    assert np.sum(np.unique(img)) == 15, 'Overlap! {}  {}'.format(subj,ch)
-    path = '/'.join(current_ch.split('/')[0:-1])
-    if os.path.exists(path + '/LABELS.nii'):
-        os.remove(path + '/LABELS.nii')
-    out = nib.Nifti1Image(img, nii.affine)
-    
-    nib.save(out, path + '/LABELS.nii')
-        
-        
-        
-    # 0 = air , 1 = GM, 2 = WM, 3 = CSF, 4 = Bone, 5 = Skin, 6 = air
-    
-fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/all_labels.txt')
-lines = fi.readlines()
-fi.close()
-for i in range(len(lines)):
-    lines[i] = '/'.join(lines[i].split('/')[0:-1]) + '/LABELS.nii'
-    
-fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/all_labels.txt', 'a')
-for item in lines:
-    fi.write("%s\n" % item)
-fi.close()
-'''
-
-#%%#########################  Normalize Intensities 
-'''
-def normalizeMRI(nii):
-    img = nib.load(nii)
-    data = img.get_data()
-    aff = img.affine
-    data1 = np.ma.masked_array(data, data==0)
-    m = data1.mean()
-    s = data1.std()
-    data1 = (data1 - m)/s
-    data1 = np.ma.getdata(data1)
-    out = nib.Nifti1Image(data1, aff)
-    return(out)
-
-fi = open('/home/hirsch/Documents/projects/minimallyConciousMRIstDCS/MRI_LucasParra/niftis/T1.txt')
-lines = fi.readlines()
-fi.close()
-
-for nii in lines:
-    out_path = '/'.join(nii.split('/')[0:-1]) + '/n' + nii.split('/')[-1][0:-1]
-    if os.path.exists(out_path):
-        os.remove(out_path)
-    nii = nii[0:-1]
-    out = normalizeMRI(nii)
-    nib.save(out, out_path)
-
-# create file
-    
-fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/resampled_T1.txt')
-lines = fi.readlines()
-fi.close()
-for i in range(len(lines)):
-    lines[i] = '/'.join(lines[i].split('/')[0:-1]) + '/n' + lines[i].split('/')[-1]
-    
-fi = open('/home/hirsch/Documents/projects/strokeHeads/SegmentedStrokeHeads/Data_DeepMedic/nr_T1', 'a')
-for item in lines:
-    fi.write("%s" % item)
-fi.close()
-
-def normalize_training_set_MRI(nii):
-    img = nib.load(nii)
-    data = img.get_data()
-    aff = img.affine
-    data1 = np.ma.masked_array(data, data==0)
-    m = data1.mean()
-    s = data1.std()
-    data1 = (data1 - m)/s
-    data1 = np.ma.getdata(data1)
-    out = nib.Nifti1Image(data1, aff)
-    return(out)
-
-nii = '/media/hirsch/d37fc604-163d-4e04-83de-88993c28e419/home/hirsch/Documents/StrokeHeads/DATA_coreg/GU003_GU003_Background1_Background 3_COPY.nii'
-'''
 def update_sum_N(nii, m, N):
     img = nib.load(nii)
     data = img.get_data()
@@ -303,10 +94,7 @@ def get_overall_mean_std_training_set(MRIs):
         diffs = update_square_diffs(nii[:-1], mean, diffs)
     s = np.sqrt(diffs/N)
     return mean, s
-'''
-MRIs_training = '/media/hirsch/d37fc604-163d-4e04-83de-88993c28e419/home/hirsch/Documents/StrokeHeads/DATA_coreg/data_after_coreg.txt'
-MEAN, STD = get_overall_mean_std_training_set(MRIs_training)
-'''
+
 def normalizeMRI(nii, mean, std):
     img = nib.load(nii)
     data = img.get_data()
@@ -333,23 +121,6 @@ def standardize_MRIs(MRIs, OUT_FILE, mean=None, std=None):
     fi.write("{}".format([mean, std]))
     fi.close()
 
-'''
-test_set = open('/home/hirsch/Documents/projects/minimallyConciousMRIstDCS/MRI_LucasParra/niftis/SEGMENTATION_CNN/coreg_T1.txt')
-lines = test_set.readlines()
-test_set.close()
-
-for nii in lines:
-    out_path = '/'.join(nii.split('/')[0:-1]) + '/normalized/n' + nii.split('/')[-1][0:-1]
-    if os.path.exists(out_path):
-        os.remove(out_path)
-    out_folder = '/'.join(nii.split('/')[0:-1]) + '/normalized/'
-    if not os.path.exists(out_folder):
-        os.mkdir(out_folder)
-    nii = nii[0:-1]
-    out = normalizeMRI(nii, MEAN, STD)
-    nib.save(out, out_path)
-    
-'''
 
 
 
